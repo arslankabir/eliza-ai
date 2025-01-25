@@ -1,34 +1,92 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
 class ElizaLogger {
-    constructor() {
+    private static instance: ElizaLogger;
+    private isNode: boolean;
+    private logFilePath: string;
+    verbose: boolean;
+    closeByNewLine: boolean;
+    useIcons: boolean;
+    logsTitle: string;
+    warningsTitle: string;
+    errorsTitle: string;
+    informationsTitle: string;
+    successesTitle: string;
+    debugsTitle: string;
+    assertsTitle: string;
+
+    private constructor() {
         // Check if we're in Node.js environment
         this.isNode =
             typeof process !== "undefined" &&
             process.versions != null &&
             process.versions.node != null;
 
-        // Set verbose based on environment
-        this.verbose = this.isNode ? process.env.VERBOSE === "true" : false;
+        // Configure logging based on environment
+        this.verbose = process.env.VERBOSE === 'true';
+        this.closeByNewLine = true;
+        this.useIcons = true;
+        this.logsTitle = "LOGS";
+        this.warningsTitle = "WARNINGS";
+        this.errorsTitle = "ERRORS";
+        this.informationsTitle = "INFORMATIONS";
+        this.successesTitle = "SUCCESS";
+        this.debugsTitle = "DEBUG";
+        this.assertsTitle = "ASSERT";
 
-        // Add initialization logging
-        console.log(`[ElizaLogger] Initializing with:
-            isNode: ${this.isNode}
-            verbose: ${this.verbose}
-            VERBOSE env: ${process.env.VERBOSE}
-            NODE_ENV: ${process.env.NODE_ENV}
-        `);
+        const logDirectory = path.join(process.cwd(), 'logs');
+        
+        // Ensure log directory exists
+        if (!fs.existsSync(logDirectory)) {
+            fs.mkdirSync(logDirectory, { recursive: true });
+        }
+
+        this.logFilePath = path.join(logDirectory, `eliza-${new Date().toISOString().replace(/:/g, '-')}.log`);
+        
+        // Write initialization log
+        this.writeLog('LOGGER INITIALIZED', 'SYSTEM');
+
+        // Global error handling for unhandled promises
+        if (this.isNode) {
+            process.on('unhandledRejection', (reason, promise) => {
+                this.error('❌ Unhandled Rejection:', reason);
+            });
+
+            process.on('uncaughtException', (error) => {
+                this.error('❌ Uncaught Exception:', error);
+            });
+        }
     }
 
-    private isNode: boolean;
-    verbose = false;
-    closeByNewLine = true;
-    useIcons = true;
-    logsTitle = "LOGS";
-    warningsTitle = "WARNINGS";
-    errorsTitle = "ERRORS";
-    informationsTitle = "INFORMATIONS";
-    successesTitle = "SUCCESS";
-    debugsTitle = "DEBUG";
-    assertsTitle = "ASSERT";
+    public static getInstance(): ElizaLogger {
+        if (!ElizaLogger.instance) {
+            ElizaLogger.instance = new ElizaLogger();
+        }
+        return ElizaLogger.instance;
+    }
+
+    private writeLog(message: string, level: 'INFO' | 'ERROR' | 'DEBUG' | 'SYSTEM' = 'INFO') {
+        const timestamp = new Date().toISOString();
+        const logMessage = `[${timestamp}] [${level}] ${message}\n`;
+
+        try {
+            // Write to file
+            fs.appendFileSync(this.logFilePath, logMessage);
+            
+            // Also log to console with color
+            const colorMap = {
+                'INFO': '\x1b[32m',   // Green
+                'ERROR': '\x1b[31m',  // Red
+                'DEBUG': '\x1b[36m',  // Cyan
+                'SYSTEM': '\x1b[33m'  // Yellow
+            };
+
+            console.log(`${colorMap[level]}${logMessage.trim()}\x1b[0m`);
+        } catch (error) {
+            console.error('Failed to write log:', error);
+        }
+    }
 
     #getColor(foregroundColor = "", backgroundColor = "") {
         if (!this.isNode) {
@@ -188,6 +246,7 @@ class ElizaLogger {
             icon: "\u25ce",
             groupTitle: ` ${this.logsTitle}`,
         });
+        this.writeLog(strings.join(' '), 'INFO');
     }
 
     warn(...strings) {
@@ -197,6 +256,7 @@ class ElizaLogger {
             icon: "\u26a0",
             groupTitle: ` ${this.warningsTitle}`,
         });
+        this.writeLog(strings.join(' '), 'INFO');
     }
 
     error(...strings) {
@@ -206,6 +266,7 @@ class ElizaLogger {
             icon: "\u26D4",
             groupTitle: ` ${this.errorsTitle}`,
         });
+        this.writeLog(strings.join(' '), 'ERROR');
     }
 
     info(...strings) {
@@ -215,6 +276,7 @@ class ElizaLogger {
             icon: "\u2139",
             groupTitle: ` ${this.informationsTitle}`,
         });
+        this.writeLog(strings.join(' '), 'INFO');
     }
 
     debug(...strings) {
@@ -232,6 +294,7 @@ class ElizaLogger {
             icon: "\u1367",
             groupTitle: ` ${this.debugsTitle}`,
         });
+        this.writeLog(strings.join(' '), 'DEBUG');
     }
 
     success(...strings) {
@@ -241,6 +304,7 @@ class ElizaLogger {
             icon: "\u2713",
             groupTitle: ` ${this.successesTitle}`,
         });
+        this.writeLog(strings.join(' '), 'INFO');
     }
 
     assert(...strings) {
@@ -250,6 +314,7 @@ class ElizaLogger {
             icon: "\u0021",
             groupTitle: ` ${this.assertsTitle}`,
         });
+        this.writeLog(strings.join(' '), 'INFO');
     }
 
     progress(message: string) {
@@ -264,7 +329,7 @@ class ElizaLogger {
     }
 }
 
-export const elizaLogger = new ElizaLogger();
+export const elizaLogger = ElizaLogger.getInstance();
 elizaLogger.closeByNewLine = true;
 elizaLogger.useIcons = true;
 

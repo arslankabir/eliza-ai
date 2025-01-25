@@ -1408,6 +1408,14 @@ export type SearchResult = {
     publishedDate?: string;
 };
 
+// export type SearchResponse = {
+//     answer?: string;
+//     query: string;
+//     responseTime: number;
+//     images: SearchImage[];
+//     results: SearchResult[];
+// };
+
 export type SearchResponse = {
     answer?: string;
     query: string;
